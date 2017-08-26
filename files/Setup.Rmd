@@ -64,4 +64,5 @@ packages that I used to generate the webpages from the R Markdown
 documents.
 
 ```{r session-info}
+sessionInfo()
 ```
