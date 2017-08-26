@@ -49,7 +49,7 @@ function "read.csv", and assigning the result of "read.csv" to
 
 ```{r, eval=FALSE}
 library(readr)
-stations <- read_csv("~/DivvyChicago/data/Divvy_Stations_2017_Q1Q2.csv")
+stations <- as.data.frame(read_csv("~/DivvyChicago/data/Divvy_Stations_2017_Q1Q2.csv"))
 ```
 
 Order the stations by capacity and set up quartile ranges.
@@ -64,7 +64,7 @@ quantile(x,seq(0,1,0.1))
 What are the largest Divvy Stations? We will assign names to them for further analysis.
 
 ```{r, eval=FALSE}
-largest.stations <- subset(stations,dpcapacity >= 40)
+subset(stations,dpcapacity >= 40)
 ```
 
 Showing the top 10 stations also gives an idea of the data.
@@ -81,17 +81,36 @@ It is often useful to access rows of a table by their name instead of
 using a number. This can be done by setting the row names in the data
 frame.
 
+```{r, eval=FALSE}
+field_museum <- "Field Museum"
+union_station <- "Canal St & Adams St"
+maggie_daley_park <- "Columbus Dr & Randolph St"
+navy_pier <- "Streeter Dr & Grand Ave"
+millennium_park <- "Michigan Ave & Washington St"
+```
+
 Add row names (replacing the assigned ID):
 
 ```{r, eval=FALSE}
 rownames(stations) <- stations$name
-stations           <- stations[-2]
+stations$name      <- NULL
 head(stations)
 ```
 
+Now show how you can reference a specific station.
 
+```{r}
+stations[field_museum,]
+```
 
+## Save your session
 
+This is a good time to save your current R environment just in case
+you accidentally quit or lose your connection to the cluster.
+
+```{r, eval=FALSE}
+save.image(file = "divvy.RData")
+```
 
 
 
