@@ -100,7 +100,7 @@ head(stations)
 Now show how you can reference a specific station.
 
 ```{r}
-stations[field_museum,]
+# stations[field_museum,]
 ```
 
 ## Save your session
