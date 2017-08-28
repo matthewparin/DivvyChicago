@@ -1,7 +1,6 @@
 # History files
 .Rhistory
 .Rapp.history
-
 # Session Data files
 .RData
 divvy.RData
@@ -11,6 +10,8 @@ divvy.RData
 /*.tar.gz
 # Output files from R CMD check
 /*.Rcheck/
+# Output files knitting RMD
+*.html
 # RStudio files
 .Rproj.user/
 # produced vignettes
