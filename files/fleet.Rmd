@@ -166,6 +166,7 @@ customers <- subset(rides, rides$usertype == "Customer")
 
 # Trip Metrics
 
+Average daily use by user type
 ```{r}
 by_user_date <- rides %>%
   group_by(usertype, day.year) %>%
@@ -178,6 +179,14 @@ average.by_user_date <- by_user_date %>%
 print(average.by_user_date)
 ```
 
+Visualize
+```{r}
+ggplot(by_user_date, aes(day.year, Total)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  ggtitle("Daily use of Divvy bikes in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
 
 Total Trips
 ```{r}
