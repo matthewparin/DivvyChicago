@@ -1,0 +1,122 @@
+---
+title: "bikes"
+author: Matthew Parin
+output: html_document
+---
+
+Source: http://pedrosan.github.io/DataScience/Bike_Sharing/
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Install packages that are needed:
+
+```{r, eval=FALSE}
+# install.packages("lubridate")
+# install.packages("data.table")
+# install.packages("cowplot")
+install.packages("plyr")
+```
+
+Load the package functions into your environment:
+
+```{r, eval=TRUE}
+library(data.table)
+library(lubridate)
+library(cowplot)
+library(plyr)
+```
+
+## Read the data into the environment
+
+```{r, eval=FALSE}
+stations <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Stations_2017_Q1Q2.csv",
+                                sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+```{r, eval=FALSE}
+rides <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Trips_2016.csv",
+                             sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+## Preparing the data for analysis
+
+Preparing a smaller set of data
+
+```{r}
+data <- rides[, c("bikeid", "from_station_id", "to_station_id", "starttime", "stoptime", "tripduration")]
+# data$starttime <- mdy_hms(data$starttime, tz = "US/Central")
+# data$stoptime <- mdy_hms(data$stoptime, tz = "US/Central")
+```
+
+Sort the data by bike and start time and reorder the row names
+
+```{r}
+initial.sort <- order(data$bikeid, data$starttime)
+data <- data[initial.sort, ]
+row.names(data) <- NULL
+```
+
+What's the trip duration summary
+
+```{r}
+summary(as.numeric(data$tripduration))
+```
+
+Let's inspect the data a little more.
+
+```{r}
+# checking for NA
+sum(is.na(data))
+
+# checking number of "levels" 
+length(unique(data$bikeid))
+length(unique(data$from_station_id))
+length(unique(data$to_station_id))
+
+# create arrays of unique values for bike, station1, station2 IDs
+bikes <- unique(data$bikeid)
+from_station_id <- unique(data$from_station_id)
+to_station_id <- unique(data$to_station_id)
+
+# check cross-matching of station lists
+sum(! (data$from_station_id %in% data$to_station_id) )  # 1 false ?
+sum(! (data$to_station_id %in% data$from_station_id) )  # all true
+```
+
+What's the minimum number of mismatches -- i.e. folks moving bikes around
+
+```{r}
+# finding mis-matching stations over the full data set
+bike.stats <- ddply(data, .(bikeid), summarize, 
+                    Ntrips = length(starttime),
+                    mismatches = sum(from_station_id[-1] != to_station_id[1:(length(starttime)-1)]), 
+                    fraction = mismatches/Ntrips)
+
+number.mismatches <- sum(bike.stats$mismatches) 
+
+# Minimum-Original-Total = Existing data + Number of mismatches
+minimum.missing.percent <- (number.mismatches / (nrow(data) + number.mismatches))*100
+print(minimum.missing.percent)
+```
+
+It looks like ~18% of the bikes are moved around the city to manage supply and demand.
+
+Can we figure out how long bikes stay at their stations?
+
+```{r}
+# main <- data[-nrow(data), ]
+# main$tdiff <- difftime(data$starttime[-1], data$stoptime[-nrow(data)])
+# main$flag.combined <- (data$from_station_id[-1] == data$to_station_id[-nrow(data)]) & 
+#                       (data$bikeid[-1] == data$bikeid[-nrow(data)])
+# main$flag.station <- c(main$from_station_id[-1] == main$to_station_id[-nrow(main)], NA)
+# 
+# good.tdiff <- main$tdiff[main$flag.combined & as.numeric(main$tdiff) > 0]
+# length(good.tdiff)
+```
+
+
+
+
+

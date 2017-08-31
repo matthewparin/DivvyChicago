@@ -1,0 +1,266 @@
+---
+title: "Fleet Performance"
+author: "Matthew Parin"
+date: "8/30/2017"
+output: html_document
+---
+
+Source: https://docs.google.com/spreadsheets/d/1phtN9ptIgmMAO0tNcf6LyJkh39UNNAmZXTQ1oqpCQo0/edit#gid=0
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+current.year <- as.integer(format(Sys.Date(), "%Y"))
+# mycolors <-  c("#CC0000", "#666666", "#009E73", "#CCCCCC", "#F0E442", "#0072B2", "#CC79A7")
+coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
+```
+
+Install packages that are needed:
+
+```{r, eval=FALSE}
+# install.packages("lubridate")
+# install.packages("data.table")
+# install.packages("cowplot")
+# install.packages("data.table")
+# install.packages("plyr")
+# install.packages("dplyr")
+# install.packages("scales")
+# install.packages("tidyr")
+# install.packages("DT")
+# install.packages("ggthemes")
+# install.packages("ggplot2")
+# install.packages("ggmap")
+```
+
+Load the package functions into your environment:
+
+```{r, eval=TRUE}
+library(data.table)
+library(lubridate)
+library(cowplot)
+library(plyr)
+library(dplyr)
+library(scales)
+library(tidyr)
+library(DT)
+library(ggthemes)
+library(ggplot2)
+library(ggmap)
+```
+
+## Read the data into the environment
+
+```{r, eval=FALSE}
+stations <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Stations_2017_Q1Q2.csv",
+                                sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+```{r, eval=FALSE}
+rides <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Trips_2016.csv",
+                             sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+## Clean the Station data
+
+```{r, eval=FALSE}
+rownames(stations) <- stations$name
+stations$name      <- NULL
+```
+
+## Clean the Ride data
+
+Create a function for parsing date and time
+```{r, eval=TRUE}
+parse.datettime <- function (x) {
+  out    <- suppressWarnings(mdy_hms(x))
+  i      <- is.na(out)
+  out[i] <- mdy_hm(x[i])
+  return(out)
+}
+```
+
+Use transform() to add columns for bike pickup and dropoff
+```{r, eval=FALSE}
+rides <- transform(rides, usertype = factor(usertype))
+rides <- transform(rides, gender = factor(gender))
+rides <- transform(rides, birthyear = as.numeric(birthyear))
+rides <- transform(rides, current.age = as.numeric(current.year - birthyear))
+rides <- transform(rides,
+                   from_station_name = factor(from_station_name,
+				                              rownames(stations)),
+                   to_station_name   = factor(to_station_name,
+				                              rownames(stations)))
+
+rides <- transform(rides, starttime = parse.datettime(starttime))
+rides <- transform(rides, start.hour = as.numeric(format(starttime, "%H")))
+rides <- transform(rides, start.minute = as.numeric(format(starttime, "%M")))
+rides <- transform(rides, start.second = as.numeric(format(starttime, "%S")))
+rides <- transform(rides, start.date = as.numeric(format(starttime, "%d")))
+rides <- transform(rides, start.week = as.numeric(format(starttime,"%W")))
+rides <- transform(rides, start.week = factor(start.week))
+rides <- transform(rides,
+           start.day = factor(weekdays(as.Date(starttime)),
+                              c("Monday","Tuesday","Wednesday","Thursday",
+                                "Friday","Saturday","Sunday")))
+rides <- transform(rides,
+           start.month = factor(months(as.Date(starttime)),
+                              c("January","February","March","April",
+                                "May", "June", "July", "August",
+                                "September","October","November",
+                                "December")))
+rides <- transform(rides, day.year = as.numeric(strftime(starttime, format = "%j")))
+
+rides <- transform(rides, stoptime = parse.datettime(stoptime))
+rides <- transform(rides, stop.hour = as.numeric(format(stoptime, "%H")))
+rides <- transform(rides, stop.minute = as.numeric(format(stoptime, "%M")))
+rides <- transform(rides, stop.second = as.numeric(format(stoptime, "%S")))
+rides <- transform(rides, stop.date = as.numeric(format(stoptime, "%d")))
+rides <- transform(rides, stop.week = as.numeric(format(stoptime,"%W")))
+rides <- transform(rides, stop.week = factor(stop.week))
+rides <- transform(rides,
+           stop.day = factor(weekdays(as.Date(stoptime)),
+                              c("Monday","Tuesday","Wednesday","Thursday",
+                                "Friday","Saturday","Sunday")))
+rides <- transform(rides,
+           stop.month = factor(months(as.Date(stoptime)),
+                              c("January","February","March","April",
+                                "May", "June", "July", "August",
+                                "September","October","November",
+                                "December")))
+rides <- transform(rides, day.year.stop = as.numeric(strftime(stoptime, format = "%j")))
+```
+
+## Prepare KPI data on fleet
+
+# Fleet Size
+
+Maximum Bikes on Street
+```{r}
+number.bikes <- length(unique(rides$bikeid))
+print(number.bikes)
+```
+
+Number of Stations
+```{r}
+number.stations <- length(unique(stations$id))
+print(number.stations)
+```
+
+Number of Docks
+```{r}
+number.docks <- sum(as.integer(stations$dpcapacity))
+print(number.docks)
+```
+
+# Customer Size 
+
+Annual Members
+```{r}
+subscribers <- subset(rides, rides$usertype == "Subscriber")
+dependents <- subset(rides, rides$usertype == "Dependent")
+```
+
+24-hour Members
+```{r}
+customers <- subset(rides, rides$usertype == "Customer")
+```
+
+# Trip Metrics
+
+```{r}
+by_user_date <- rides %>%
+  group_by(usertype, day.year) %>%
+  dplyr::summarise(Total = n())
+
+average.by_user_date <- by_user_date %>%
+  group_by(usertype) %>%
+  dplyr::summarize(mean = mean(Total))
+
+print(average.by_user_date)
+```
+
+
+Total Trips
+```{r}
+number.trips <- length(rides$trip_id)
+```
+
+Peak Month Average Trips Per Bike Per Day
+```{r}
+by_month_date_bike <- rides %>%
+  group_by(start.month, day.year, bikeid) %>%
+  dplyr::summarize(Total = n())
+
+peak_average.by_month_date_bike <- by_month_date_bike %>%
+  group_by(start.month) %>%
+  dplyr::summarize(mean = mean(Total))
+
+print(max((peak_average.by_month_date_bike$mean)))
+```
+
+Average Trips Per Bike Per Day 
+```{r}
+by_day_bike <- rides %>%
+  group_by(start.month, day.year, bikeid) %>%
+  dplyr::summarize(Total = n())
+
+average.by_date_bike <- by_day_bike %>%
+  group_by(day.year) %>%
+  dplyr::summarize(mean = mean(Total))
+
+print(mean(average.by_date_bike$mean))
+```
+
+Average Trip Length (Miles)
+```{r}
+
+```
+
+Average Trip Duration
+```{r}
+seconds_to_period(mean(as.numeric(rides$tripduration)))
+```
+
+Total Number of Trips by Hour
+```{r}
+by_hour <- rides %>%
+  group_by(start.hour) %>%
+  dplyr::summarize(Total = n())
+
+datatable(by_hour)
+```
+
+Plot Total Number of Divvy Trips by Hour
+```{r}
+ggplot(by_hour, aes(start.hour, Total)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  ggtitle("Total 2016 Divvy Trips Every Hour") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
+Total Number of Divvy Trips by Hour (monthly)
+```{r}
+by_month_hour <- rides %>%
+  group_by(start.month, start.hour) %>%
+  dplyr::summarize(Total = n())
+```
+
+Plot Total Number of Divvy Trips by Hour (monthly)
+```{r}
+ggplot(by_month_hour, aes(start.hour, Total, fill = start.month)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Total 2016 Divvy Trips by Hour and Month") +
+  scale_y_continuous(labels = comma) # + you need 12 colors to make the distinction
+  # scale_fill_manual(values = mycolors)
+```
+
+Define start and stop locations
+```{r}
+# station.locations <- data.frame(station_id = stations$id, lon=stations$longitude, lat=stations$latitude)
+```
+
+
+
+
+
+

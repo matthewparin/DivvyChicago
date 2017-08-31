@@ -97,6 +97,7 @@ This code chunk parses the dates & times, then creates new tables columns for st
 
 ```{r, eval=FALSE}
 rides <- transform(rides, starttime = parse.dt(starttime))
+rides <- transform(rides, start.hour = as.numeric(format(starttime, "%H")))
 rides <- transform(rides, start.week = as.numeric(format(starttime,"%W")))
 rides <- transform(rides,
            start.day = factor(weekdays(as.Date(starttime)),
