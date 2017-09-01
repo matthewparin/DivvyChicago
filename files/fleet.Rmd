@@ -126,7 +126,7 @@ rides <- transform(rides,
                                 "May", "June", "July", "August",
                                 "September","October","November",
                                 "December")))
-rides <- transform(rides, day.year.stop = as.numeric(strftime(stoptime, format = "%j")))
+# rides <- transform(rides, day.year.stop = as.numeric(strftime(stoptime, format = "%j")))
 ```
 
 ## Prepare KPI data on fleet
@@ -166,28 +166,6 @@ customers <- subset(rides, rides$usertype == "Customer")
 
 # Trip Metrics
 
-Average daily use by user type
-```{r}
-by_user_date <- rides %>%
-  group_by(usertype, day.year) %>%
-  dplyr::summarise(Total = n())
-
-average.by_user_date <- by_user_date %>%
-  group_by(usertype) %>%
-  dplyr::summarize(mean = mean(Total))
-
-print(average.by_user_date)
-```
-
-Visualize
-```{r}
-ggplot(by_user_date, aes(day.year, Total)) +
-  geom_bar(stat = "identity", fill = "darkgreen") +
-  ggtitle("Daily use of Divvy bikes in Chicago") +
-  theme(legend.position = "none") +
-  scale_y_continuous(labels = comma)
-```
-
 Total Trips
 ```{r}
 number.trips <- length(rides$trip_id)
@@ -201,9 +179,9 @@ by_month_date_bike <- rides %>%
 
 peak_average.by_month_date_bike <- by_month_date_bike %>%
   group_by(start.month) %>%
-  dplyr::summarize(mean = mean(Total))
+  dplyr::summarize(Mean = mean(Total))
 
-print(max((peak_average.by_month_date_bike$mean)))
+print(max((peak_average.by_month_date_bike$Mean)))
 ```
 
 Average Trips Per Bike Per Day 
@@ -214,10 +192,33 @@ by_day_bike <- rides %>%
 
 average.by_date_bike <- by_day_bike %>%
   group_by(day.year) %>%
+  dplyr::summarize(Mean = mean(Total))
+
+print(mean(average.by_date_bike$Mean))
+```
+
+Average Daily Use by User Type
+```{r}
+by_user_date <- rides %>%
+  group_by(usertype, day.year) %>%
+  dplyr::summarise(Total = n())
+
+average.by_user_date <- by_user_date %>%
+  group_by(usertype) %>%
   dplyr::summarize(mean = mean(Total))
 
-print(mean(average.by_date_bike$mean))
+print(average.by_user_date)
 ```
+
+Visualize Average Daily Use by User Type
+```{r}
+ggplot(by_user_date, aes(day.year, Total)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  ggtitle("Daily use of Divvy bikes in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
 
 Average Trip Length (Miles)
 ```{r}
