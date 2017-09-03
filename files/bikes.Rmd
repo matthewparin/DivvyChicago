@@ -16,7 +16,7 @@ Install packages that are needed:
 # install.packages("lubridate")
 # install.packages("data.table")
 # install.packages("cowplot")
-install.packages("plyr")
+# install.packages("plyr")
 ```
 
 Load the package functions into your environment:
