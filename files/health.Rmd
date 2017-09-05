@@ -1,0 +1,284 @@
+---
+title: "System-wide Health Metrics"
+author: "Matthew Parin"
+date: "September 3, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+current.year <- as.integer(format(Sys.Date(), "%Y"))
+coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
+number.subscribers <- 33600
+```
+
+http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
+Install packages that are needed:
+
+```{r, eval=FALSE}
+# install.packages("lubridate")
+# install.packages("data.table")
+# install.packages("cowplot")
+# install.packages("data.table")
+# install.packages("plyr")
+# install.packages("dplyr")
+# install.packages("scales")
+# install.packages("tidyr")
+# install.packages("DT")
+# install.packages("ggthemes")
+# install.packages("ggplot2")
+# install.packages("ggmap")
+```
+
+Load the package functions into your environment:
+
+```{r, eval=TRUE}
+library(data.table)
+library(lubridate)
+library(cowplot)
+library(plyr)
+library(dplyr)
+library(scales)
+library(tidyr)
+library(DT)
+library(ggthemes)
+library(ggplot2)
+library(ggmap)
+```
+
+## Read the data into the environment
+
+```{r, eval=FALSE}
+stations <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Stations_2017_Q1Q2.csv",
+                                sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+```{r, eval=FALSE}
+rides <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Trips_2016.csv",
+                             sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+## Clean the data for analysis
+
+# Clean the Station data
+
+```{r, eval=FALSE}
+rownames(stations) <- stations$name
+stations$name      <- NULL
+```
+
+# Clean the Rider data
+
+Create a function for parsing date and time
+```{r, eval=TRUE}
+parse.datettime <- function (x) {
+  out    <- suppressWarnings(mdy_hms(x))
+  i      <- is.na(out)
+  out[i] <- mdy_hm(x[i])
+  return(out)
+}
+```
+
+Use transform() to add columns for bike pickup
+```{r, eval=FALSE}
+rides <- transform(rides, usertype = factor(usertype))
+rides <- transform(rides, gender = factor(gender))
+rides <- transform(rides, birthyear = as.numeric(birthyear))
+rides <- transform(rides, current.age = as.numeric(current.year - birthyear))
+rides <- transform(rides,
+                   from_station_name = factor(from_station_name,
+				                              rownames(stations)),
+                   to_station_name   = factor(to_station_name,
+				                              rownames(stations)))
+
+rides <- transform(rides, starttime = parse.datettime(starttime))
+rides <- transform(rides, start.hour = as.numeric(format(starttime, "%H")))
+rides <- transform(rides, start.minute = as.numeric(format(starttime, "%M")))
+rides <- transform(rides, start.second = as.numeric(format(starttime, "%S")))
+rides <- transform(rides, start.date = as.numeric(format(starttime, "%d")))
+rides <- transform(rides, start.week = as.numeric(format(starttime,"%W")))
+rides <- transform(rides, start.week = factor(start.week))
+rides <- transform(rides,
+           start.day = factor(weekdays(as.Date(starttime)),
+                              c("Monday","Tuesday","Wednesday","Thursday",
+                                "Friday","Saturday","Sunday")))
+rides <- transform(rides,
+           start.month = factor(months(as.Date(starttime)),
+                              c("January","February","March","April",
+                                "May", "June", "July", "August",
+                                "September","October","November",
+                                "December")))
+rides <- transform(rides, day.year = as.numeric(strftime(starttime, format = "%j")))
+```
+
+Use transform() to add columns for bike dropoff
+```{r, eval=FALSE}
+rides <- transform(rides, stoptime = parse.datettime(stoptime))
+rides <- transform(rides, stop.hour = as.numeric(format(stoptime, "%H")))
+rides <- transform(rides, stop.minute = as.numeric(format(stoptime, "%M")))
+rides <- transform(rides, stop.second = as.numeric(format(stoptime, "%S")))
+rides <- transform(rides, stop.date = as.numeric(format(stoptime, "%d")))
+rides <- transform(rides, stop.week = as.numeric(format(stoptime,"%W")))
+rides <- transform(rides, stop.week = factor(stop.week))
+rides <- transform(rides,
+           stop.day = factor(weekdays(as.Date(stoptime)),
+                              c("Monday","Tuesday","Wednesday","Thursday",
+                                "Friday","Saturday","Sunday")))
+rides <- transform(rides,
+           stop.month = factor(months(as.Date(stoptime)),
+                              c("January","February","March","April",
+                                "May", "June", "July", "August",
+                                "September","October","November",
+                                "December")))
+rides <- transform(rides, day.year.stop = as.numeric(strftime(stoptime, format = "%j")))
+```
+
+
+## Context of the metrics to track
+
+If you are a General Manager of a data-driven product, think youurself as the owner of a restaurant. This way many questions can easily be answered.
+
+Let's say, for instance, you have three areas you want to emphasize as a leader. First, you want to serve the best, freshest food. Next, you want to serve this food in the best setting/environment. Finally, you want to innovate on your menu and dishes.
+
+To achieve these objectives, you will want to setup monitoring of your food pipelines and an ability to learn what goes wrong in a timely manner. You want to define metrics to see what is the correlation between the quality of your dishes and the frequency of individual customer visits. You also want to measure the efficiency of the whole restaurant -- do your customers spend most of their waiting or not.
+
+## Health Metrics in the Divvy Context
+Source: https://www.itdp.org/wp-content/uploads/2014/07/ITDP_Bike_Share_Planning_Guide.pdf
+Standard bike/dock ratio: 2.0-2.5 docking spaces per bike
+Standard bike/resident ratio: 10-30 bikes per resident in coverage area
+Station density: 10-16 stations per km^2 (26-42 stations per mi^2)
+System efficiency: 4-8 daily uses per bike (Average number of daily uses)
+Market penetration: 1 daily trip per 20-40 residents (Average daily trips per resident)
+
+# Goal 1: High availability of bikes & docks
+
+Objective: figure out what kind of service level is appropriate for "high availability" of bikes
+<!-- - Calculate which bikes have been rebalanced (sort by bikeid and which ones have different enter vs exit stations)--WHY? -->
+- Calculate bike dock ratio (GOAL: 2.0-2.5 docking spaces per bike)
+- Calculate system efficiency (GOAL: 4-8 daily uses per bike)
+- Define the availability of bikes at each station, every minute during a given day (then scale)
+- Define the avilability of docks at each station, every minute during a given day (then scale)
+- Define how long it takes before a bike arrives to serve a station (when empty)
+- Define how long it takes before a bike leaves (when full)
+```{r, eval=FALSE}
+ratio_bike.dock <- sum(as.integer(stations$dpcapacity)) / length(unique(rides$bikeid))
+
+print(ifelse(ratio_bike.dock > 2.5, "Above standard", 
+       ifelse(ratio_bike.dock < 2, "Below standard", "Standard") 
+             )
+)
+```
+
+```{r, eval=FALSE}
+bike.use.per.day <- rides %>%
+  group_by(bikeid, day.year) %>%
+  dplyr::summarize(Total = n())
+
+mean_bike.use.per.day <- bike.use.per.day %>%
+  dplyr::summarize(Mean = mean(Total))
+ 
+ratio_bike.use.per.day <- mean(mean_bike.use.per.day$Mean)
+
+print(ifelse(ratio_bike.use.per.day > 8, "Above standard", 
+       ifelse(ratio_bike.use.per.day < 4, "Below standard", "Standard") 
+             )
+)
+```
+I need to learn more about how to calculate how full a given station is before I can calculate the stock out time or the stock maximum time.
+
+# Goal 2: High utilization of stations
+Docking Level of Service (DLS) = 1 - "Total time of full stations per month" / "Total service time per month" (GOAL: 85%)
+Bicycle Level of Service (BLS) = 1 - "Total time of empty stations per month" "Total service time per month" (GOAL: 85%)
+
+Objective: figure out how often customers arrive and depart stations
+- Define number of departures at each station, by month, week, day, and hour
+- Define number of arrivals at each station, by month, week, day, and hour
+- Calculate the number of minutes stations are full, by day, week, month
+- Calculate the number of minutes stations are empty, by day, week, month
+
+Top Performing Stations
+```{r, eval=FALSE}
+departures.by_month <- rides %>%
+  group_by(from_station_id, start.month) %>%
+  dplyr::summarise(Total = n())
+
+top_departures.by_month <- subset(departures.by_month, as.numeric(departures.by_month$Total) >= 4000)
+
+ggplot(top_departures.by_month, aes(from_station_id, Total, fill = start.month)) +
+  geom_bar(mapping = aes(fill = start.month), stat = "identity", show.legend = TRUE) +
+  ggtitle("Top Monthly Divvy Departure Stations in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
+```{r, eval=FALSE}
+arrivals.by_month <- rides %>%
+  group_by(to_station_id, start.month) %>%
+  dplyr::summarise(Total = n())
+
+top_arrivals.by_month <- subset(arrivals.by_month, as.numeric(arrivals.by_month$Total) >= 4000)
+
+ggplot(top_arrivals.by_month, aes(to_station_id, Total, fill = start.month)) +
+  geom_bar(mapping = aes(fill = start.month), stat = "identity", show.legend = TRUE) +
+  ggtitle("Top Monthly Divvy Arrival Stations in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
+Bottom Performing Stations
+```{r, eval=FALSE}
+bottom_departures.by_month <- subset(departures.by_month, as.numeric(departures.by_month$Total) <= 1)
+
+ggplot(bottom_departures.by_month, aes(from_station_id, Total, fill = start.month)) +
+  geom_bar(mapping = aes(fill = start.month), stat = "identity", show.legend = TRUE) +
+  ggtitle("Bottom Monthly Divvy Departure Stations in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
+```{r, eval=FALSE}
+bottom_arrivals.by_month <- subset(arrivals.by_month, as.numeric(arrivals.by_month$Total) <= 1)
+
+ggplot(bottom_arrivals.by_month, aes(to_station_id, Total, fill = start.month)) +
+  geom_bar(mapping = aes(fill = start.month), stat = "identity", show.legend = TRUE) +
+  ggtitle("Bottom Monthly Divvy Arrival Stations in Chicago") +
+  theme(legend.position = "none") +
+  scale_y_continuous(labels = comma)
+```
+
+Source: http://stat545.com/bit001_dplyr-cheatsheet.html
+```{r, eval=FALSE}
+library(dplyr)
+worst.stations <- semi_join(bottom_departures.by_month, bottom_arrivals.by_month)
+worst.stations <- subset(stations, stations$id == worst.stations)
+# print(unique(worst.stations$from_station_id))
+```
+
+
+# Goal 3: Propose new service locations
+
+Objective: figure out which stations should be removed and which stations need additional docks
+- Calculate service area, per km and per mi
+- Calculate number of residents in service area
+- Calculate station density (GOAL: 10-16 stations per km^2 (26-42 stations per mi^2))
+- Calculate bike/resident ratio (GOAL: 10-30 bikes per resident in coverage area)
+```{r, eval=FALSE}
+service.area_km <- length(unique(stations$id)) * .5
+service.area_mi <- service.area_km * 0.38610
+station.density_km <- length(unique(stations$id)) / service.area_km
+station.density_mi <- length(unique(stations$id)) / service.area_mi
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
