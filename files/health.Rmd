@@ -8,13 +8,13 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 current.year <- as.integer(format(Sys.Date(), "%Y"))
-coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
+# coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
 number.subscribers <- 33600
 ```
 
 http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
-Install packages that are needed:
 
+Install packages that are needed:
 ```{r, eval=FALSE}
 # install.packages("lubridate")
 # install.packages("data.table")
@@ -31,7 +31,6 @@ Install packages that are needed:
 ```
 
 Load the package functions into your environment:
-
 ```{r, eval=TRUE}
 library(data.table)
 library(lubridate)
@@ -154,8 +153,8 @@ Market penetration: 1 daily trip per 20-40 residents (Average daily trips per re
 
 Objective: figure out what kind of service level is appropriate for "high availability" of bikes
 <!-- - Calculate which bikes have been rebalanced (sort by bikeid and which ones have different enter vs exit stations)--WHY? -->
-- Calculate bike dock ratio (GOAL: 2.0-2.5 docking spaces per bike)
-- Calculate system efficiency (GOAL: 4-8 daily uses per bike)
+- DONE: Calculate bike dock ratio (GOAL: 2.0-2.5 docking spaces per bike)
+- DONE: Calculate system efficiency (GOAL: 4-8 daily uses per bike)
 - Define the availability of bikes at each station, every minute during a given day (then scale)
 - Define the avilability of docks at each station, every minute during a given day (then scale)
 - Define how long it takes before a bike arrives to serve a station (when empty)
@@ -170,13 +169,11 @@ print(ifelse(ratio_bike.dock > 2.5, "Above standard",
 ```
 
 ```{r, eval=FALSE}
-bike.use.per.day <- rides %>%
+mean_bike.use.per.day <- rides %>%
   group_by(bikeid, day.year) %>%
-  dplyr::summarize(Total = n())
-
-mean_bike.use.per.day <- bike.use.per.day %>%
+  dplyr::summarize(Total = n()) %>%
   dplyr::summarize(Mean = mean(Total))
- 
+
 ratio_bike.use.per.day <- mean(mean_bike.use.per.day$Mean)
 
 print(ifelse(ratio_bike.use.per.day > 8, "Above standard", 
@@ -187,12 +184,14 @@ print(ifelse(ratio_bike.use.per.day > 8, "Above standard",
 I need to learn more about how to calculate how full a given station is before I can calculate the stock out time or the stock maximum time.
 
 # Goal 2: High utilization of stations
+
+Context: Some bike ridesharing communities have made levels of service KPIs for the performance of their system 
 Docking Level of Service (DLS) = 1 - "Total time of full stations per month" / "Total service time per month" (GOAL: 85%)
 Bicycle Level of Service (BLS) = 1 - "Total time of empty stations per month" "Total service time per month" (GOAL: 85%)
 
 Objective: figure out how often customers arrive and depart stations
-- Define number of departures at each station, by month, week, day, and hour
-- Define number of arrivals at each station, by month, week, day, and hour
+- DONE: Define number of departures at each station, by month, week, day, and hour
+- DONE: Define number of arrivals at each station, by month, week, day, and hour
 - Calculate the number of minutes stations are full, by day, week, month
 - Calculate the number of minutes stations are empty, by day, week, month
 
@@ -246,30 +245,38 @@ ggplot(bottom_arrivals.by_month, aes(to_station_id, Total, fill = start.month)) 
   scale_y_continuous(labels = comma)
 ```
 
-Source: http://stat545.com/bit001_dplyr-cheatsheet.html
-```{r, eval=FALSE}
-library(dplyr)
-worst.stations <- semi_join(bottom_departures.by_month, bottom_arrivals.by_month)
-worst.stations <- subset(stations, stations$id == worst.stations)
-# print(unique(worst.stations$from_station_id))
-```
-
-
 # Goal 3: Propose new service locations
 
 Objective: figure out which stations should be removed and which stations need additional docks
-- Calculate service area, per km and per mi
+- DONE: Calculate service area, per km and per mi
 - Calculate number of residents in service area
-- Calculate station density (GOAL: 10-16 stations per km^2 (26-42 stations per mi^2))
+- DONE: Calculate station density (GOAL: 10-16 stations per km^2 (26-42 stations per mi^2))
 - Calculate bike/resident ratio (GOAL: 10-30 bikes per resident in coverage area)
+
+Source: http://stat545.com/bit001_dplyr-cheatsheet.html
 ```{r, eval=FALSE}
-service.area_km <- length(unique(stations$id)) * .5
+# This chunk of code needs some help -- I want to know which stations are the worst performing in the system
+# library(dplyr)
+# worst.stations <- intersect(bottom_departures.by_month, bottom_arrivals.by_month)
+# worst.stationes <- stations[stations$id == worst.stations$from_station_id, ]
+# worst.stations1 <- select(filter(stations, stations$id == worst.stations$from_station_id))
+# worst.stations2 <- subset(stations, stations$id == worst.stations$from_station_id)
+# worst.stations <- subset(stations, stations$id == worst.stations$from_station_id)
+# list(unique(worst.stations$from_station_id))
+```
+
+Calculate station density
+```{r, eval=FALSE}
+# Assumption: Service area is 100 square miles, per http://chi.streetsblog.org/2016/06/07/divvy-releases-odd-looking-new-service-area-map-announces-new-initiatives/
+service.area_km <- length(unique(stations$id)) * .45
 service.area_mi <- service.area_km * 0.38610
 station.density_km <- length(unique(stations$id)) / service.area_km
 station.density_mi <- length(unique(stations$id)) / service.area_mi
 
-
-
+print(ifelse(station.density_km > 16, "Above standard", 
+       ifelse(station.density_km < 10, "Below standard", "Standard") 
+             )
+)
 ```
 
 
