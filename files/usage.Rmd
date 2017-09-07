@@ -6,7 +6,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-current.year <- as.integer(format(Sys.Date(), "%Y"))
+current.year <- 2016
 ```
 
 Install packages that are needed:

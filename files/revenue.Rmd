@@ -1,0 +1,158 @@
+---
+title: "Divvy Revenue (2016)"
+author: "Matthew Parin"
+date: "September 5, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+current.year <- as.integer(format(Sys.Date(), "%Y"))
+# coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
+```
+
+Install packages that are needed:
+```{r, eval=FALSE}
+# install.packages("lubridate")
+# install.packages("data.table")
+# install.packages("cowplot")
+# install.packages("data.table")
+# install.packages("plyr")
+# install.packages("dplyr")
+# install.packages("scales")
+# install.packages("tidyr")
+# install.packages("DT")
+# install.packages("ggthemes")
+# install.packages("ggplot2")
+# install.packages("ggmap")
+```
+
+Load the package functions into your environment:
+```{r, eval=TRUE}
+library(data.table)
+library(lubridate)
+library(cowplot)
+library(plyr)
+library(dplyr)
+library(scales)
+library(tidyr)
+library(DT)
+library(ggthemes)
+library(ggplot2)
+library(ggmap)
+```
+
+## Read the Ride data into the environment
+
+```{r, eval=FALSE}
+rides <- as.data.frame(fread("~/DivvyChicago/data/Divvy_Trips_2016.csv",
+                             sep = ",", header = TRUE, stringsAsFactors = FALSE))
+```
+
+# Clean the Rider data
+
+```{r, eval=FALSE}
+rides$tripduration <- as.numeric(rides$tripduration)
+```
+
+
+## Context of the Divvy Revenue Model
+
+If you are a General Manager of a product with multiple revenue streams, you have to think through how best to adjust prices to achieve your business objectives.
+
+For the purposes of this model, I want to simply define how much of the Chicago Divvy revenue comes from rides of various types. I draw all my pricing data from https://www.divvybikes.com/pricing/ and use the trip duration of the 2016 Divvy rides data to inform the analysis.
+
+Segment the data into similar priced groups
+```{r, eval=FALSE}
+rides.subscribers <- subset(rides, rides$usertype == "Subscriber")
+rides.customers <- subset(rides, rides$usertype == "Customer")
+rides.dependent <- subset(rides, rides$usertype == "Dependent")
+```
+
+Pricing specifics for Subscribers and Customers
+```{r, eval=FALSE}
+# rides.duration.sample <- as.data.frame(matrix(c(5500, 3700, 1900, 1500),
+#                                 nrow = 4,
+#                                 ncol = 1))
+
+# ride.revenue.subscriber <- function(x) {
+#   if (x > 5400) {
+#     result <- "High" #1.5 + 4.5 + (((x-5400) / 1800) * 6)
+#   }
+#   else if (3600 < x && x <= 5400) {
+#     result <- "Mid" #1.5 + 4.5
+#   }
+#   else if (1800 < x && x <= 3600) {
+#     result <- "Low" #1.5
+#   }
+#   else {
+#     result <- "No" #0
+#   }
+#   return(result)
+# }
+
+ride.revenue.subscriber <- function(x) {
+  if (x > 5400) {
+    result <- 1.5 + 4.5 + (((x-5400) / 1800) * 6)
+  }
+  else if (3600 < x && x <= 5400) {
+    result <- 1.5 + 4.5
+  }
+  else if (1800 < x && x <= 3600) {
+    result <- 1.5
+  }
+  else {
+    result <- 0
+  }
+  return(result)
+}
+
+ride.revenue.customer <- function(x) {
+  if (x > 5400) {
+    result <- 2 + 6 + (((x-5400) / 1800) * 8)
+  }
+  else if (3600 < x && x <= 5400) {
+    result <- 2 + 6
+  }
+  else if (1800 < x && x <= 3600) {
+    result <- 2
+  }
+  else {
+    result <- 0
+  }
+  return(result)
+}
+```
+
+Find the cost of a ride
+```{r}
+# rides.duration.sample$cost <- round(apply(rides.duration.sample[1:1], 1, ride.revenue.subscriber), digits = 2)
+
+rides.dependent$cost <- round(apply(rides.dependent[5:5], 1, ride.revenue.subscriber), digits = 2)
+rides.subscribers$cost <- round(apply(rides.subscribers[5:5], 1, ride.revenue.subscriber), digits = 2)
+rides.customers$cost <- round(apply(rides.customers[5:5], 1, ride.revenue.customer), digits = 2)
+```
+
+Calculate trip revenue
+```{r}
+subscriber.trip.revenue <- sum(rides.subscribers$cost)
+dependent.trip.revenue <- sum(rides.dependent$cost)
+customer.trip.revenue <- sum(rides.customers$cost)
+total.trip.revenue <- subscriber.trip.revenue + dependent.trip.revenue + customer.trip.revenue
+print(total.trip.revenue)
+```
+
+Calculate fees revenue
+```{r}
+subscriber.fees.revenue <- 33600*99
+customer.fees.revenue <- length(rides.customers$usertype)*9.95
+total.fees.revenue <- subscriber.fees.revenue + customer.fees.revenue
+print(total.fees.revenue)
+```
+
+Calculate total revenue
+```{r}
+total.gross.revenue <- total.trip.revenue + total.fees.revenue
+print(total.gross.revenue)
+```
+

@@ -9,7 +9,7 @@ Source: https://docs.google.com/spreadsheets/d/1phtN9ptIgmMAO0tNcf6LyJkh39UNNAmZ
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-current.year <- as.integer(format(Sys.Date(), "%Y"))
+current.year <- 2016
 # mycolors <-  c("#CC0000", "#666666", "#009E73", "#CCCCCC", "#F0E442", "#0072B2", "#CC79A7")
 coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
 ```

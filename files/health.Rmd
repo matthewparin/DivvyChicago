@@ -7,12 +7,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-current.year <- as.integer(format(Sys.Date(), "%Y"))
+current.year <- 2016
+# current.year <- as.integer(format(Sys.Date(), "%Y"))
 # coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
-number.subscribers <- 33600
 ```
-
-http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
 
 Install packages that are needed:
 ```{r, eval=FALSE}
@@ -268,6 +266,8 @@ Source: http://stat545.com/bit001_dplyr-cheatsheet.html
 Calculate station density
 ```{r, eval=FALSE}
 # Assumption: Service area is 100 square miles, per http://chi.streetsblog.org/2016/06/07/divvy-releases-odd-looking-new-service-area-map-announces-new-initiatives/
+# Assumption: Number of subscribers is 33600, per http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
+number.subscribers <- 33600
 service.area_km <- length(unique(stations$id)) * .45
 service.area_mi <- service.area_km * 0.38610
 station.density_km <- length(unique(stations$id)) / service.area_km
