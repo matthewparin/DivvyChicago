@@ -150,6 +150,7 @@ print(total.trip.revenue)
 
 Define revenue assumptions
 ```{r}
+# Source: http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
 subscribers <- 33600
 cost.subscription <- 99
 average.rides_customer <- 2
