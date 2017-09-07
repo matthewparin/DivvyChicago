@@ -58,7 +58,7 @@ rides$tripduration <- as.numeric(rides$tripduration)
 
 ## Context of the Divvy Revenue Model
 
-If you are a General Manager of a product with multiple revenue streams, you have to think through how best to adjust prices to achieve your business objectives.
+If you are a General Manager of a product with multiple revenue streams, you have to think through how understand prices to achieve your business objectives.
 
 For the purposes of this model, I want to simply define how much of the Chicago Divvy revenue comes from rides of various types. I draw all my pricing data from https://www.divvybikes.com/pricing/ and use the trip duration of the 2016 Divvy rides data to inform the analysis.
 
@@ -69,12 +69,14 @@ rides.customers <- subset(rides, rides$usertype == "Customer")
 rides.dependent <- subset(rides, rides$usertype == "Dependent")
 ```
 
-Pricing specifics for Subscribers and Customers
+Pricing for Subscribers and Customers (Test-driven)
 ```{r, eval=FALSE}
+# // Create mock data
 # rides.duration.sample <- as.data.frame(matrix(c(5500, 3700, 1900, 1500),
 #                                 nrow = 4,
 #                                 ncol = 1))
 
+# // Iterate on the function
 # ride.revenue.subscriber <- function(x) {
 #   if (x > 5400) {
 #     result <- "High" #1.5 + 4.5 + (((x-5400) / 1800) * 6)
@@ -91,6 +93,12 @@ Pricing specifics for Subscribers and Customers
 #   return(result)
 # }
 
+# // Test the results
+# rides.duration.sample$cost <- round(apply(rides.duration.sample[1:1], 1, ride.revenue.subscriber), digits = 2)
+```
+
+Pricing specifics for Subscribers and Customers
+```{r, eval=FALSE}
 ride.revenue.subscriber <- function(x) {
   if (x > 5400) {
     result <- 1.5 + 4.5 + (((x-5400) / 1800) * 6)
@@ -126,8 +134,6 @@ ride.revenue.customer <- function(x) {
 
 Find the cost of a ride
 ```{r}
-# rides.duration.sample$cost <- round(apply(rides.duration.sample[1:1], 1, ride.revenue.subscriber), digits = 2)
-
 rides.dependent$cost <- round(apply(rides.dependent[5:5], 1, ride.revenue.subscriber), digits = 2)
 rides.subscribers$cost <- round(apply(rides.subscribers[5:5], 1, ride.revenue.subscriber), digits = 2)
 rides.customers$cost <- round(apply(rides.customers[5:5], 1, ride.revenue.customer), digits = 2)
@@ -142,10 +148,18 @@ total.trip.revenue <- subscriber.trip.revenue + dependent.trip.revenue + custome
 print(total.trip.revenue)
 ```
 
+Define revenue assumptions
+```{r}
+subscribers <- 33600
+cost.subscription <- 99
+average.rides_customer <- 2
+cost.customer <- 9.95
+```
+
 Calculate fees revenue
 ```{r}
-subscriber.fees.revenue <- 33600*99
-customer.fees.revenue <- length(rides.customers$usertype)*9.95
+subscriber.fees.revenue <- subscribers*cost.subscription
+customer.fees.revenue <- (length(rides.customers$usertype)/average.rides_customer)*cost.customer
 total.fees.revenue <- subscriber.fees.revenue + customer.fees.revenue
 print(total.fees.revenue)
 ```
@@ -156,3 +170,31 @@ total.gross.revenue <- total.trip.revenue + total.fees.revenue
 print(total.gross.revenue)
 ```
 
+Combine separate segments into a single data frame
+```{r}
+rides.trip.revenue <- rbind(rides.subscribers, rides.dependent, rides.customers)
+```
+
+Calculate financial indicators
+```{r}
+average.revenue.subscriber <- (subscriber.fees.revenue + subscriber.trip.revenue)/subscribers
+average.revenue.customer <- (customer.fees.revenue + customer.trip.revenue) / (length(rides.customers$usertype)/average.rides_customer)
+
+daily.average.revenue.subscriber <- average.revenue.subscriber/365
+
+average.revenue.ride.subscriber <- sum(rides.subscribers$cost) / subscribers
+average.revenue.ride.customer <- sum(rides.customers$cost) / length(rides.customers$usertype)
+average.revenue.ride.total <- sum(rides.trip.revenue$cost) / length(rides.trip.revenue$trip_id)
+
+average.revenue.total <- total.gross.revenue / (subscribers + (length(rides.customers$usertype)/average.rides_customer))
+```
+
+## Analysis
+
+The revenue model of Divvy is dominated by customer fees. Nearly 45% of Divvy's annual revenue is composed of 24-hour subscription fees paid by those using Divvy for a short time, based on assumptions.
+
+Moreover, fees from customers and subscribers dominate nearly 80% of Divvy's 9.65M USD gross revenue. This is a likely outcome given almost 92% of rides do not incur additional time-based fees, for rides which extend beyond 30 minutes.
+
+In terms of straight revenue, the revenue value of each subscriber is nearly 8x each short-term customer. Subscribers bring in 109.78 USD of revenue per year whereas customers bring in 13.89 per day.
+
+On an equal basis, customer bring in 13.89 USD per day and subscribers bring in 0.30 USD per day. This means the question of whether or not to close down the system at any given time throughout the year (i.e. during the winter), turns into an economic question of whether delivering bikes at a price of 14.19 USD per day is above the average total cost (ATC) of delivering bikes in a specific period. Divvy does not shut down during the winter, so it follows the marginal cost (MC) of delivering bikes every day of the year is above ATC.
