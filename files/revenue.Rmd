@@ -62,6 +62,8 @@ If you are a General Manager of a product with multiple revenue streams, you hav
 
 For the purposes of this model, I want to simply define how much of the Chicago Divvy revenue comes from rides of various types. I draw all my pricing data from https://www.divvybikes.com/pricing/ and use the trip duration of the 2016 Divvy rides data to inform the analysis.
 
+Revenue models inspired by https://www.marketingprofs.com/articles/2017/32037/revenue-is-not-a-kpi-but-these-six-measures-are
+
 Segment the data into similar priced groups
 ```{r, eval=FALSE}
 rides.subscribers <- subset(rides, rides$usertype == "Subscriber")
