@@ -28,5 +28,7 @@ vignettes/*.pdf
 .Rproj.user
 # files in the data folder
 *data/
+# files in the archive folder
+*archive/
 
 

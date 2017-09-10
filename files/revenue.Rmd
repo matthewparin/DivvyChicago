@@ -7,39 +7,29 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-current.year <- as.integer(format(Sys.Date(), "%Y"))
-# coord <- as.data.frame(geocode("Chicago, Illinois", output = "latlon"))
 ```
 
 Install packages that are needed:
 ```{r, eval=FALSE}
 # install.packages("lubridate")
 # install.packages("data.table")
-# install.packages("cowplot")
-# install.packages("data.table")
 # install.packages("plyr")
 # install.packages("dplyr")
-# install.packages("scales")
 # install.packages("tidyr")
 # install.packages("DT")
-# install.packages("ggthemes")
 # install.packages("ggplot2")
-# install.packages("ggmap")
 ```
 
 Load the package functions into your environment:
 ```{r, eval=TRUE}
-library(data.table)
 library(lubridate)
-library(cowplot)
+library(data.table)
 library(plyr)
 library(dplyr)
 library(scales)
 library(tidyr)
 library(DT)
-library(ggthemes)
 library(ggplot2)
-library(ggmap)
 ```
 
 ## Read the Ride data into the environment
@@ -58,23 +48,45 @@ rides$tripduration <- as.numeric(rides$tripduration)
 
 ## Context of the Divvy Revenue Model
 
-If you are a General Manager of a product with multiple revenue streams, you have to think through how understand prices to achieve your business objectives.
+If you are a General Manager of a product with multiple revenue streams, you have to think through different evaluation models meant to define progress toward your business objectives.
 
 For the purposes of this model, I want to simply define how much of the Chicago Divvy revenue comes from rides of various types. I draw all my pricing data from https://www.divvybikes.com/pricing/ and use the trip duration of the 2016 Divvy rides data to inform the analysis.
 
+To date, my model includes information on:
+- Gross revenue
+- Gross revenue, by user type
+- Gross revenue, by age segment (TODO)
+- Average revenue, by user type
+- Average revenue, by age segment (TODO)
+- Daily average revenue of subscribers
+
 Revenue models inspired by https://www.marketingprofs.com/articles/2017/32037/revenue-is-not-a-kpi-but-these-six-measures-are
 
-Segment the data into similar priced groups
+# Create a new data frame for analysis
 ```{r, eval=FALSE}
-rides.subscribers <- subset(rides, rides$usertype == "Subscriber")
-rides.customers <- subset(rides, rides$usertype == "Customer")
-rides.dependent <- subset(rides, rides$usertype == "Dependent")
+rides.df <- rides[, c("bikeid", "tripduration", "usertype", "gender", "birthyear")]
 ```
 
-Pricing for Subscribers and Customers (Test-driven)
+# Calculate the age of the user
+```{r, eval=FALSE}
+data.year <- 2016
+rides.df <- transform(rides.df, birthyear = as.numeric(birthyear))
+rides.df <- transform(rides.df, current.age = as.numeric(data.year - birthyear))
+```
+
+# Segment the data into similar priced groups
+I want to remove the "Dependent" segment, as it appears to be a single user
+```{r, eval=FALSE}
+rides.subscribers <- subset(rides.df, rides.df$usertype == "Subscriber")
+rides.customers <- subset(rides.df, rides.df$usertype == "Customer")
+rides.dependent <- subset(rides.df, rides.df$usertype == "Dependent")
+rm(rides.dependent)
+```
+
+# Trip revenue function for Subscribers and Customers (Test-driven data analysis)
 ```{r, eval=FALSE}
 # // Create mock data
-# rides.duration.sample <- as.data.frame(matrix(c(5500, 3700, 1900, 1500),
+# rides.duration.test <- as.data.frame(matrix(c(5500, 3700, 1900, 1500),
 #                                 nrow = 4,
 #                                 ncol = 1))
 
@@ -96,10 +108,10 @@ Pricing for Subscribers and Customers (Test-driven)
 # }
 
 # // Test the results
-# rides.duration.sample$cost <- round(apply(rides.duration.sample[1:1], 1, ride.revenue.subscriber), digits = 2)
+# rides.duration.test$cost <- round(apply(rides.duration.test[1:1], 1, ride.revenue.subscriber), digits = 2)
 ```
 
-Pricing specifics for Subscribers and Customers
+# Trip revenue function for Subscribers and Customers
 ```{r, eval=FALSE}
 ride.revenue.subscriber <- function(x) {
   if (x > 5400) {
@@ -134,62 +146,154 @@ ride.revenue.customer <- function(x) {
 }
 ```
 
-Find the cost of a ride
-```{r}
-rides.dependent$cost <- round(apply(rides.dependent[5:5], 1, ride.revenue.subscriber), digits = 2)
-rides.subscribers$cost <- round(apply(rides.subscribers[5:5], 1, ride.revenue.subscriber), digits = 2)
-rides.customers$cost <- round(apply(rides.customers[5:5], 1, ride.revenue.customer), digits = 2)
+# Find the cost of a ride
+```{r, eval=FALSE}
+rides.subscribers$cost <- round(apply(rides.subscribers[2:2], 1,
+                                      ride.revenue.subscriber), digits = 2)
+rides.customers$cost <- round(apply(rides.customers[2:2], 1,
+                                    ride.revenue.customer), digits = 2)
 ```
 
-Calculate trip revenue
-```{r}
+# Calculate trip revenue
+```{r, eval=TRUE}
 subscriber.trip.revenue <- sum(rides.subscribers$cost)
-dependent.trip.revenue <- sum(rides.dependent$cost)
 customer.trip.revenue <- sum(rides.customers$cost)
-total.trip.revenue <- subscriber.trip.revenue + dependent.trip.revenue + customer.trip.revenue
+total.trip.revenue <- subscriber.trip.revenue + customer.trip.revenue
 print(total.trip.revenue)
 ```
 
-Define revenue assumptions
-```{r}
+# Define assumptions for revenue analysis
+```{r, eval=FALSE}
 # Source: http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
-subscribers <- 33600
+# Assumption: International Bike-share database is accurate
+
+# Membership
+subscribers <- 33586
+customers <- 354008
+
+# Membership not covered in data
+student <- 2074
+equity <- 1965
+
+# Fees
 cost.subscription <- 99
-average.rides_customer <- 2
 cost.customer <- 9.95
+
+# Ridership
+average.rides_customer <- length(rides.customers$usertype) / customers
+average.rides_subscriber <- length(rides.subscribers$usertype) / subscribers
 ```
 
-Calculate fees revenue
-```{r}
+# Calculate fees revenue
+```{r, eval=TRUE}
 subscriber.fees.revenue <- subscribers*cost.subscription
 customer.fees.revenue <- (length(rides.customers$usertype)/average.rides_customer)*cost.customer
 total.fees.revenue <- subscriber.fees.revenue + customer.fees.revenue
 print(total.fees.revenue)
 ```
 
-Calculate total revenue
-```{r}
+# Calculate total revenue
+```{r, eval=TRUE}
 total.gross.revenue <- total.trip.revenue + total.fees.revenue
 print(total.gross.revenue)
 ```
 
-Combine separate segments into a single data frame
-```{r}
-rides.trip.revenue <- rbind(rides.subscribers, rides.dependent, rides.customers)
+# Combine separate segments into a single data frame
+```{r, eval=FALSE}
+rides.df.revenue <- rbind(rides.subscribers, rides.customers)
 ```
 
 Calculate financial indicators
-```{r}
-average.revenue.subscriber <- (subscriber.fees.revenue + subscriber.trip.revenue)/subscribers
-average.revenue.customer <- (customer.fees.revenue + customer.trip.revenue) / (length(rides.customers$usertype)/average.rides_customer)
+```{r, eval=TRUE}
+# Average revenue by user type
+average.revenue.subscriber <- (subscriber.fees.revenue + subscriber.trip.revenue) / subscribers
+average.revenue.customer <- (customer.fees.revenue + customer.trip.revenue) / customers
 
-daily.average.revenue.subscriber <- average.revenue.subscriber/365
+# Daily average revenue by user type
+daily.average.revenue.subscriber <- average.revenue.subscriber / 365
+daily.average.revenue.customer <- average.revenue.customer
 
-average.revenue.ride.subscriber <- sum(rides.subscribers$cost) / subscribers
-average.revenue.ride.customer <- sum(rides.customers$cost) / length(rides.customers$usertype)
-average.revenue.ride.total <- sum(rides.trip.revenue$cost) / length(rides.trip.revenue$trip_id)
+# Average ride revenue for individual rides by user type
+average.revenue.ride.subscriber_per.trip <- sum(rides.subscribers$cost) /
+  length(rides.subscribers$cost)
+average.revenue.ride.customer_per.trip <- sum(rides.customers$cost) / 
+  length(rides.customers$cost)
+average.revenue.ride.total_per.trip <- sum(rides.df.revenue$cost) /
+  length(rides.df.revenue$cost)
 
-average.revenue.total <- total.gross.revenue / (subscribers + (length(rides.customers$usertype)/average.rides_customer))
+# Average ride revenue for combined rides by user type
+average.revenue.ride.subscriber_combined <- sum(rides.subscribers$cost) /
+  subscribers
+average.revenue.ride.customer_combined <- sum(rides.customers$cost) / 
+  customers
+average.revenue.ride.total_combined <- sum(rides.df.revenue$cost) /
+  (subscribers + customers)
+```
+
+# Plot the average revenue of subscribers, by age
+```{r, eval=TRUE}
+library(ggplot2)
+ride.subscibers_plot <- rides.subscribers %>%
+  group_by(gender, current.age) %>%
+  dplyr::summarize(mean = mean(cost))
+
+ride.subscibers_plot <- subset(ride.subscibers_plot, ride.subscibers_plot$gender != "")
+
+ride.subscibers_plot$mean_z = (ride.subscibers_plot$mean -
+  mean(ride.subscibers_plot$mean)) /
+  sd(ride.subscibers_plot$mean)
+
+ride.subscibers_plot$type <- ifelse(ride.subscibers_plot$mean_z < 0, "below", "above")
+ride.subscibers_plot <- ride.subscibers_plot[order(ride.subscibers_plot$current.age), ]
+ride.subscibers_plot$current.age <- factor(ride.subscibers_plot$current.age)
+
+ggplot(ride.subscibers_plot, aes(x=current.age, y=mean_z, label=mean_z)) + 
+  geom_bar(stat = 'identity', aes(fill=gender), width=.5)  +
+  labs(subtitle="Subdivided by Gender", 
+       title= "Relative Value of Divvy Users by Age") + 
+  ylim(-2.5, 2.5) +
+  coord_flip()
+```
+
+# Segment Subscribers by age
+```{r, eval=FALSE}
+age.labels <- c("Child", "College", "Young Professional", "30s", "40s", "50s", "60s", "70s", "80s", "90s", "100+")
+rides.subscribers$age.segments <- cut(
+  rides.subscribers$current.age,
+  breaks = c(0, 17, 22, 29, 39, 49, 59, 69, 79, 89, 99, 149),
+  right = FALSE,
+  labels = age.labels
+)
+```
+
+# Plot the age segment data
+```{r, eval=TRUE}
+library(ggplot2)
+# Create the data frame for analysis
+ride.subscibers_age.plot <- rides.subscribers %>%
+  group_by(gender, age.segments) %>%
+  dplyr::summarize(mean = mean(cost))
+
+# Remove the files that do not include gender
+ride.subscibers_age.plot <- subset(ride.subscibers_age.plot, ride.subscibers_age.plot$gender != "")
+
+# Add a column with a Z score
+ride.subscibers_age.plot$mean_z = (ride.subscibers_age.plot$mean -
+  mean(ride.subscibers_age.plot$mean)) /
+  sd(ride.subscibers_age.plot$mean)
+
+# Prepare the data for plotting
+ride.subscibers_age.plot$type <- ifelse(ride.subscibers_age.plot$mean_z < 0, "below", "above")
+ride.subscibers_age.plot <- ride.subscibers_age.plot[order(ride.subscibers_age.plot$mean_z), ]
+ride.subscibers_age.plot$age.segments <- factor(ride.subscibers_age.plot$age.segments)
+
+# Plot the data
+ggplot(ride.subscibers_age.plot, aes(x=age.segments, y=mean_z, label=mean_z)) + 
+  geom_bar(stat = 'identity', aes(fill=gender), width=.5)  +
+  labs(subtitle="Subdivided by Gender", 
+       title= "Relative Value of Divvy Users by Age") + 
+  ylim(-2.5, 2.5) +
+  coord_flip()
 ```
 
 ## Analysis

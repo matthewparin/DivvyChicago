@@ -267,6 +267,7 @@ Calculate station density
 ```{r, eval=FALSE}
 # Assumption: Service area is 100 square miles, per http://chi.streetsblog.org/2016/06/07/divvy-releases-odd-looking-new-service-area-map-announces-new-initiatives/
 # Assumption: Number of subscribers is 33600, per http://www.chicagotribune.com/news/local/breaking/ct-divvy-rides-record-met-20161229-story.html
+# Assumption: Service area population is 1730000 and service area is 100.7, per International Bike-share Database
 number.subscribers <- 33600
 service.area_km <- length(unique(stations$id)) * .45
 service.area_mi <- service.area_km * 0.38610
