@@ -21,10 +21,7 @@ rm -f README.txt
 
 # Combine the trip data into a single file.
 head -n 1 Divvy_Trips_2017_Q1.csv > header.txt
-cat Divvy_Trips_2017_Q1.csv Divvy_Trips_2017_Q2.csv | \
-# cat Divvy_Trips_2017_Q1.csv Divvy_Trips_2017_Q2.csv \
-# Divvy_Trips_2017_Q3.csv Divvy_Trips_2017_Q4.csv | \y
-grep -v trip_id > temp.txt
+cat Divvy_Trips_2017_Q1.csv Divvy_Trips_2017_Q2.csv | grep -v trip_id > temp.txt
 cat header.txt temp.txt > Divvy_Trips_2017.csv
 
 # Clean up the rest of the files that are not needed.
